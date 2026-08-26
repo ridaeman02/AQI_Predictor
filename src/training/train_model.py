@@ -66,11 +66,23 @@ def register_model_in_hopsworks(name, metrics, model_file):
         project = get_hopsworks_project()
         mr = project.get_model_registry()
 
+        # Link Feature View to model registry for schema inference and provenance tracking
+        fv = None
+        try:
+            from src.feature_store.hopsworks_connection import get_feature_store
+            fs = get_feature_store()
+            fv = fs.get_feature_view(name="aqi_features_view", version=1)
+            print(f"Linked Feature View to model registry metadata for {name}.")
+        except Exception as fv_err:
+            print(f"Warning: Could not fetch Feature View to link during model registration: {fv_err}")
+
         # Define model metadata
         hs_model = mr.python.create_model(
             name=name.replace(" ", "_").lower(), 
             metrics=metrics,
             description=f"{name} model predicting {TARGET}",
+            feature_view=fv,
+            training_dataset_version=1 if fv is not None else None
         )
         
         # Save model to registry without removing local file

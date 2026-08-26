@@ -9,29 +9,34 @@ from src.feature_store.hopsworks_connection import get_feature_store
 
 def get_training_data(fallback_csv_path="data/processed_features.csv", version=3):
     """
-    Attempts to fetch training data from Hopsworks Feature Group.
-    Falls back to local CSV if Hopsworks is unavailable.
+    Attempts to fetch training data from Hopsworks Feature View.
+    Falls back to local CSV if Hopsworks or Feature View is unavailable.
     """
     try:
         print("Attempting to connect to Hopsworks Feature Store...")
         fs = get_feature_store()
         
-        print(f"Retrieving 'aqi_features' Feature Group (Version {version})...")
-        fg = fs.get_feature_group(name="aqi_features", version=version)
-        
-        print("Reading feature group data...")
-        # Get all features
+        print("Retrieving 'aqi_features_view' Feature View (Version 1)...")
         try:
-            df = fg.select_all().read(read_options={"use_arrow_flight": False})
-        except Exception as flight_err:
-            print(f"Direct read failed ({flight_err}), trying standard read...")
-            df = fg.read()
-        print(f"Connected to Hopsworks")
-        print(f"Feature Group: {fg.name}")
-        print(f"Version: {fg.version}")
-        print(f"Successfully retrieved data")
+            fv = fs.get_feature_view(name="aqi_features_view", version=1)
+        except Exception:
+            print("Feature View not found. Creating it idempotently from Feature Group...")
+            fg = fs.get_feature_group(name="aqi_features", version=version)
+            fv = fs.create_feature_view(
+                name="aqi_features_view", 
+                query=fg.select_all(), 
+                version=1
+            )
+        
+        print("Reading Feature View data via batch interface...")
+        df = fv.get_batch_data()
+        
+        print("Connected to Hopsworks")
+        print(f"Feature View: {fv.name}")
+        print(f"Version: {fv.version}")
+        print("Successfully retrieved data")
         print(f"Rows retrieved: {len(df)}")
-        print(f"Training data source: Hopsworks")
+        print("Training data source: Hopsworks Feature View (aqi_features_view)")
         
         # Sort chronologically to preserve time-series nature
         df['timestamp'] = pd.to_datetime(df['timestamp'])
@@ -39,7 +44,7 @@ def get_training_data(fallback_csv_path="data/processed_features.csv", version=3
         
         return df
     except Exception as e:
-        print(f"Hopsworks retrieval failed: {e}")
+        print(f"WARNING: Hopsworks Feature View unavailable: {e}")
         print(f"Training data source: Local CSV fallback ({fallback_csv_path})")
         
         if os.path.exists(fallback_csv_path):
