@@ -42,7 +42,7 @@ jobs:
       
     - name: Run predictions and check alerts
       env:
-        ALERT_EMAIL_ENABLED: 'true'
+        ALERT_EMAIL_ENABLED: ${{ secrets.ALERT_EMAIL_TO != '' && secrets.SMTP_HOST != '' && secrets.SMTP_PORT != '' && secrets.SMTP_USERNAME != '' && secrets.SMTP_PASSWORD != '' }}
         ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
         SMTP_HOST: ${{ secrets.SMTP_HOST }}
         SMTP_PORT: ${{ secrets.SMTP_PORT }}
