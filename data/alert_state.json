@@ -1,0 +1,18 @@
+{
+  "Lahore": {
+    "active": true,
+    "last_alerted_category": "Unhealthy"
+  },
+  "Karachi": {
+    "active": true,
+    "last_alerted_category": "Unhealthy"
+  },
+  "Islamabad": {
+    "active": true,
+    "last_alerted_category": "Unhealthy"
+  },
+  "Quetta": {
+    "active": true,
+    "last_alerted_category": "Unhealthy"
+  }
+}
