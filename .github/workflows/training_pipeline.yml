@@ -1,4 +1,4 @@
-name: Training Pipeline
+name: Daily Training Pipeline
 
 on:
   schedule:
@@ -11,12 +11,13 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+        cache: 'pip'
 
     - name: Install dependencies
       run: |
@@ -29,4 +30,21 @@ jobs:
         HOPSWORKS_PROJECT_NAME: ${{ secrets.HOPSWORKS_PROJECT_NAME }}
       run: |
         mkdir -p models
+        # This script automatically trains, evaluates, and pushes to Hopsworks Model Registry
         python src/training/train_model.py
+
+    - name: Verify generated model artifacts
+      run: |
+        if [ ! -f "models/aqi_random_forest.pkl" ]; then
+          echo "Error: Random Forest model artifact not found!"
+          exit 1
+        fi
+        if [ ! -f "models/aqi_ridge.pkl" ]; then
+          echo "Error: Ridge Regression model artifact not found!"
+          exit 1
+        fi
+        if [ ! -f "models/aqi_xgboost.pkl" ]; then
+          echo "Error: XGBoost model artifact not found!"
+          exit 1
+        fi
+        echo "All model artifacts verified successfully."

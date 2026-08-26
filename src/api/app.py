@@ -8,6 +8,7 @@ import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from src.prediction.predict import get_next_hour_predictions
+from src.prediction.forecast import forecast_next_72_hours
 
 app = Flask(__name__)
 
@@ -103,6 +104,33 @@ def get_current_aqi(city):
         return jsonify({
             "status": "success",
             "data": response_data
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+@app.route('/api/forecast/<city>', methods=['GET'])
+def get_forecast(city):
+    """
+    Returns the 72-hour AQI forecast for the requested city.
+    """
+    try:
+        forecast_df = forecast_next_72_hours(city, hours=72)
+        
+        raw_records = forecast_df.to_dict(orient="records")
+        forecast_list = [clean_record(r) for r in raw_records]
+        
+        return jsonify({
+            "status": "success",
+            "data": {
+                "city": city,
+                "forecast_hours": len(forecast_list),
+                "forecast": forecast_list
+            }
         }), 200
         
     except Exception as e:

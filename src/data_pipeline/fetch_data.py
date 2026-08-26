@@ -102,10 +102,10 @@ def collect_data():
 
             records.append(record)
 
-            print(f"✓ {city} data collected successfully")
+            print(f"[OK] {city} data collected successfully")
 
         except requests.RequestException as error:
-            print(f"✗ Error collecting data for {city}: {error}")
+            print(f"[ERROR] Error collecting data for {city}: {error}")
 
     return records
 

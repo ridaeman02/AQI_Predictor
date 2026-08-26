@@ -12,24 +12,33 @@ if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
 from src.utils.aqi_categories import get_aqi_category
-from src.prediction.predict import get_next_hour_predictions, FEATURES
+from src.prediction.predict import get_next_hour_predictions, load_trained_models, FEATURES
+from src.prediction.forecast import forecast_next_72_hours, get_forecast_shap_explanation
 
 # ============================================================
 # PAGE CONFIGURATION
 # ============================================================
 st.set_page_config(
-    page_title="AQI Intelligence Platform — Next-Hour Forecasting",
+    page_title="AQI Intelligence Platform — 72-Hour Forecasting",
     page_icon=None,
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 # ============================================================
-# PATHS & DATA FILES
+# PATHS & DATA FILES (Robust Local Path Handling)
 # ============================================================
 DATA_FILE = BASE_DIR / "data" / "processed_features.csv"
 COMBINED_DATA_FILE = BASE_DIR / "data" / "combined_historical_data.csv"
 MODEL_DIR = BASE_DIR / "models"
+
+# ============================================================
+# CACHED MODEL RESOURCE
+# ============================================================
+@st.cache_resource
+def get_cached_models():
+    """Load and hold ML models in memory across Streamlit reruns."""
+    return load_trained_models(model_dir=str(MODEL_DIR), from_hopsworks=False)
 
 # ============================================================
 # CUSTOM STYLING (CSS DESIGN SYSTEM - NO EMOJIS)
@@ -185,12 +194,12 @@ AQI_COLORS_BG = {
 }
 
 # ============================================================
-# LOAD CACHED PREDICTIONS & FEATURE DATA
+# LOAD CACHED PREDICTIONS & FEATURE DATA (TTL = 1 hour)
 # ============================================================
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=3600)
 def load_data_and_predictions():
     if not os.path.exists(DATA_FILE):
-        return None, None, f"Processed features file missing at: {DATA_FILE}"
+        return None, None, f"Required local data file not found: {DATA_FILE}"
 
     try:
         features_df = pd.read_csv(DATA_FILE)
@@ -206,7 +215,8 @@ def load_data_and_predictions():
     try:
         predictions_df = get_next_hour_predictions(
             data_file=str(DATA_FILE),
-            model_dir=str(MODEL_DIR)
+            model_dir=str(MODEL_DIR),
+            include_shap=False
         )
     except Exception as e:
         return None, None, f"Error running next-hour prediction service: {str(e)}"
@@ -223,27 +233,26 @@ if err:
 st.markdown("""
 <div class="platform-header">
     <div class="platform-title">AQI Intelligence Platform</div>
-    <div class="platform-subtitle">Next-Hour Air Quality Index Forecasting Pipeline & Multi-Model Analytics</div>
+    <div class="platform-subtitle">Next-Hour & 72-Hour Air Quality Index Forecasting Pipeline & Multi-Model Analytics</div>
 </div>
 """, unsafe_allow_html=True)
 
+# Global Station Selector
+available_cities = ["Lahore", "Karachi", "Islamabad", "Peshawar", "Quetta"]
+cities_in_preds = list(predictions_data["city"].unique())
+select_options = [c for c in available_cities if c in cities_in_preds] or cities_in_preds
+
+selected_city = st.selectbox("Select Station Area", select_options, key="global_city_selector")
+
 # Navigation Tabs
-tab_city, tab_comparison, tab_trends, tab_models = st.tabs([
-    "City Intelligence", "Cross-City Next-Hour Comparison", "Historical & Environmental Trends", "Model Performance & Metrics"
+tab_city, tab_72h, tab_comparison, tab_trends, tab_models = st.tabs([
+    "City Intelligence", "72-Hour Forecast (3-Day)", "Cross-City Next-Hour Comparison", "Historical & Environmental Trends", "Model Performance & Metrics"
 ])
 
 # ============================================================
 # TAB 1: CITY INTELLIGENCE (Per-City Dashboard)
 # ============================================================
 with tab_city:
-    available_cities = ["Lahore", "Karachi", "Islamabad", "Peshawar", "Quetta"]
-    cities_in_preds = list(predictions_data["city"].unique())
-    select_options = [c for c in available_cities if c in cities_in_preds] or cities_in_preds
-
-    col_select, col_info = st.columns([1, 2])
-    with col_select:
-        selected_city = st.selectbox("Select Station Area", select_options, key="city_selector")
-
     city_pred = predictions_data[predictions_data["city"] == selected_city].iloc[0]
     city_features = features_data[features_data["city"] == selected_city].sort_values("timestamp")
     latest_feat = city_features.iloc[-1]
@@ -251,16 +260,13 @@ with tab_city:
     cur_time_str = pd.to_datetime(city_pred["current_timestamp"]).strftime("%Y-%m-%d %H:%M UTC")
     pred_time_str = pd.to_datetime(city_pred["prediction_timestamp"]).strftime("%Y-%m-%d %H:%M UTC")
 
-    with col_info:
-        st.markdown(f"""
-        <div style="text-align: right; color: #94a3b8; font-size: 0.85rem; padding-top: 0.5rem;">
-            <span class="status-badge" style="color: #10b981;">Pipeline Active</span> &nbsp;&bull;&nbsp; 
-            Current Timestamp: <strong>{cur_time_str}</strong> &nbsp;&bull;&nbsp; 
-            Prediction Target (+1h): <strong>{pred_time_str}</strong>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="text-align: right; color: #94a3b8; font-size: 0.85rem; padding-bottom: 0.5rem;">
+        <span class="status-badge" style="color: #10b981;">Pipeline Active (Local Mode)</span> &nbsp;&bull;&nbsp; 
+        Current Timestamp: <strong>{cur_time_str}</strong> &nbsp;&bull;&nbsp; 
+        Prediction Target (+1h): <strong>{pred_time_str}</strong>
+    </div>
+    """, unsafe_allow_html=True)
 
     # AQI Hero Panels: Current AQI vs Next-Hour AQI
     col_cur_aqi, col_next_aqi = st.columns(2)
@@ -355,8 +361,141 @@ with tab_city:
             </div>
             """, unsafe_allow_html=True)
 
+    # Deferred SHAP Section inside expander
+    with st.expander("Model Explainability & Feature Attribution (SHAP)", expanded=False):
+        st.write("SHAP (SHapley Additive exPlanations) shows how each environmental metric contributes to the AQI prediction.")
+        if st.button("Compute Local Feature Contributions", key="compute_shap_btn"):
+            with st.spinner("Calculating SHAP feature attribution..."):
+                shap_result = get_forecast_shap_explanation(selected_city, data_file=str(DATA_FILE), model_dir=str(MODEL_DIR))
+                if shap_result and "features" in shap_result:
+                    shap_df = pd.DataFrame(shap_result["features"])
+                    st.dataframe(shap_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("SHAP explanation module is ready. No complex attribution requested.")
+
 # ============================================================
-# TAB 2: CROSS-CITY NEXT-HOUR COMPARISON
+# TAB 2: 72-HOUR AQI FORECAST (3-DAY MULTI-STEP)
+# ============================================================
+with tab_72h:
+    st.markdown(f"<div class='card-label'>72-Hour AQI Multi-Step Forecast for {selected_city}</div>", unsafe_allow_html=True)
+
+    @st.cache_data(ttl=3600)
+    def load_72h_forecast(city_name):
+        try:
+            return forecast_next_72_hours(
+                city_name,
+                hours=72,
+                data_file=str(DATA_FILE),
+                model_dir=str(MODEL_DIR),
+                include_shap=False
+            ), None
+        except Exception as ex:
+            return None, str(ex)
+
+    fc_df, fc_err = load_72h_forecast(selected_city)
+
+    if fc_err:
+        st.error(f"Error generating 72-hour forecast: {fc_err}")
+    elif fc_df is not None and not fc_df.empty:
+        fc_df["timestamp_dt"] = pd.to_datetime(fc_df["timestamp"])
+
+        # Summary Cards for 72h
+        fc_cols = st.columns(4)
+        avg_72 = float(fc_df["ensemble"].mean())
+        max_72 = float(fc_df["ensemble"].max())
+        min_72 = float(fc_df["ensemble"].min())
+        prim_cat = get_aqi_category(avg_72)
+
+        with fc_cols[0]:
+            st.markdown(f"""
+            <div class="custom-card">
+                <div class="card-label">72-Hour Average AQI</div>
+                <div class="card-value">{avg_72:.2f}</div>
+                <div style="font-size: 0.8rem; color: #94a3b8;">Primary: {prim_cat}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with fc_cols[1]:
+            st.markdown(f"""
+            <div class="custom-card">
+                <div class="card-label">Peak Predicted AQI</div>
+                <div class="card-value" style="color: #ef4444;">{max_72:.2f}</div>
+                <div style="font-size: 0.8rem; color: #94a3b8;">Category: {get_aqi_category(max_72)}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with fc_cols[2]:
+            st.markdown(f"""
+            <div class="custom-card">
+                <div class="card-label">Minimum Predicted AQI</div>
+                <div class="card-value" style="color: #10b981;">{min_72:.2f}</div>
+                <div style="font-size: 0.8rem; color: #94a3b8;">Category: {get_aqi_category(min_72)}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with fc_cols[3]:
+            st.markdown(f"""
+            <div class="custom-card">
+                <div class="card-label">Data Inputs Source</div>
+                <div class="card-value" style="font-size: 1.1rem; color: #38bdf8;">{fc_df.iloc[0].get('weather_source', 'API')}</div>
+                <div style="font-size: 0.75rem; color: #94a3b8;">Pollutants: {fc_df.iloc[0].get('pollutant_source', 'Forecast')}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # Primary Ensemble 72-Hour Line Chart
+        st.markdown("<div class='card-label'>Primary 72-Hour Forecast (Ensemble Model)</div>", unsafe_allow_html=True)
+        chart_ensemble = alt.Chart(fc_df).mark_line(color="#38bdf8", strokeWidth=2.5).encode(
+            x=alt.X("timestamp_dt:T", title="Timestamp (UTC)"),
+            y=alt.Y("ensemble:Q", title="Predicted AQI Index"),
+            tooltip=[
+                alt.Tooltip("step:Q", title="Hour Step (t+)"),
+                alt.Tooltip("timestamp_dt:T", title="Timestamp"),
+                alt.Tooltip("ensemble:Q", title="Ensemble AQI", format=".2f"),
+                alt.Tooltip("category:N", title="AQI Category")
+            ]
+        ).properties(height=320).interactive()
+
+        st.altair_chart(chart_ensemble, use_container_width=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # Multi-Model Comparison Line Chart (RF vs Ridge vs XGBoost vs Ensemble)
+        st.markdown("<div class='card-label'>Multi-Model Comparison Over 72 Hours</div>", unsafe_allow_html=True)
+        melted_models = fc_df.melt(
+            id_vars=["timestamp_dt", "step", "category"],
+            value_vars=["random_forest", "ridge", "xgboost", "ensemble"],
+            var_name="Model",
+            value_name="Predicted AQI"
+        )
+        melted_models["Model"] = melted_models["Model"].map({
+            "random_forest": "Random Forest",
+            "ridge": "Ridge Regression",
+            "xgboost": "XGBoost",
+            "ensemble": "Ensemble"
+        })
+
+        chart_models = alt.Chart(melted_models).mark_line().encode(
+            x=alt.X("timestamp_dt:T", title="Timestamp (UTC)"),
+            y=alt.Y("Predicted AQI:Q", title="AQI Prediction"),
+            color=alt.Color("Model:N", scale=alt.Scale(
+                domain=["Random Forest", "Ridge Regression", "XGBoost", "Ensemble"],
+                range=["#10b981", "#f59e0b", "#ef4444", "#38bdf8"]
+            )),
+            tooltip=["Model:N", alt.Tooltip("timestamp_dt:T", title="Timestamp"), alt.Tooltip("Predicted AQI:Q", format=".2f")]
+        ).properties(height=300).interactive()
+
+        st.altair_chart(chart_models, use_container_width=True)
+
+        # Data Table
+        with st.expander("View Complete 72-Hour Hourly Forecast Data"):
+            disp_fc = fc_df[["step", "timestamp", "random_forest", "ridge", "xgboost", "ensemble", "category"]].copy()
+            disp_fc.columns = ["Step (t+h)", "Timestamp", "Random Forest", "Ridge Regression", "XGBoost", "Ensemble Prediction", "AQI Category"]
+            st.dataframe(disp_fc, use_container_width=True, hide_index=True)
+
+# ============================================================
+# TAB 3: CROSS-CITY NEXT-HOUR COMPARISON
 # ============================================================
 with tab_comparison:
     st.markdown("<div class='card-label'>All-City AQI Summary Table</div>", unsafe_allow_html=True)
@@ -432,7 +571,7 @@ with tab_comparison:
     st.altair_chart(grouped_chart, use_container_width=True)
 
 # ============================================================
-# TAB 3: HISTORICAL & ENVIRONMENTAL TRENDS
+# TAB 4: HISTORICAL & ENVIRONMENTAL TRENDS
 # ============================================================
 with tab_trends:
     st.markdown("<div class='card-label'>Station Historical Feature Trends</div>", unsafe_allow_html=True)
@@ -490,7 +629,7 @@ with tab_trends:
         st.altair_chart(chart_wind, use_container_width=True)
 
 # ============================================================
-# TAB 4: MODEL PERFORMANCE & METRICS
+# TAB 5: MODEL PERFORMANCE & METRICS
 # ============================================================
 with tab_models:
     st.markdown("""
@@ -518,7 +657,8 @@ with tab_models:
         <ul style="color: #cbd5e1; font-size: 0.9rem; margin-top: 0.5rem; line-height: 1.6;">
             <li><strong>Target Variable:</strong> <code>target_aqi</code> (represents AQI of the NEXT hour).</li>
             <li><strong>Features Used (19 total):</strong> Temperature, Humidity, Wind Speed, PM2.5, PM10, CO, NO2, O3, SO2, NH3, NO, Hour, Day, Month, Day of Week, AQI Lag 1, AQI Lag 2, AQI Change, AQI 3-hour Rolling Mean.</li>
-            <li><strong>Ensemble Architecture:</strong> Simple equal-weight ensemble averaging the next-hour predictions of Random Forest, Ridge Regression, and XGBoost.</li>
+            <li><strong>72-Hour Forecast Architecture:</strong> Autoregressive multi-step recursive forecasting over 72 steps without target data leakage. Integrates OpenWeather 5-day weather and 4-day pollutant forecast APIs.</li>
+            <li><strong>Ensemble Architecture:</strong> Simple equal-weight ensemble averaging predictions of Random Forest, Ridge Regression, and XGBoost.</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -527,6 +667,6 @@ with tab_models:
 st.markdown("<hr style='border-color: #334155;'>", unsafe_allow_html=True)
 st.markdown("""
 <div style="text-align: center; color: #64748b; font-size: 0.8rem; padding-bottom: 1.5rem;">
-    AQI Intelligence Platform &nbsp;&bull;&nbsp; Next-Hour Forecasting System
+    AQI Intelligence Platform &nbsp;&bull;&nbsp; 72-Hour Forecasting System
 </div>
 """, unsafe_allow_html=True)

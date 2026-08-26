@@ -21,7 +21,11 @@ def get_training_data(fallback_csv_path="data/processed_features.csv", version=3
         
         print("Reading feature group data...")
         # Get all features
-        df = fg.read()
+        try:
+            df = fg.select_all().read(read_options={"use_arrow_flight": False})
+        except Exception as flight_err:
+            print(f"Direct read failed ({flight_err}), trying standard read...")
+            df = fg.read()
         print(f"Connected to Hopsworks")
         print(f"Feature Group: {fg.name}")
         print(f"Version: {fg.version}")

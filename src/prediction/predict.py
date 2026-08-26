@@ -35,46 +35,50 @@ FEATURES = [
 ]
 
 
-def load_trained_models(model_dir=MODEL_DIR):
-    """Load all available trained models from model directory or Hopsworks."""
+def load_trained_models(model_dir=MODEL_DIR, from_hopsworks=False):
+    """
+    Load all available trained models directly from the local model directory.
+    If from_hopsworks=True, attempts to download/load from Hopsworks Model Registry first.
+    """
     model_configs = {
-        "Random Forest": {"local": os.path.join(model_dir, "aqi_random_forest.pkl"), "hw_name": "aqi_random_forest"},
-        "Ridge Regression": {"local": os.path.join(model_dir, "aqi_ridge.pkl"), "hw_name": "aqi_ridge"},
-        "XGBoost": {"local": os.path.join(model_dir, "aqi_xgboost.pkl"), "hw_name": "aqi_xgboost"},
+        "Random Forest": {"local": os.path.join(str(model_dir), "aqi_random_forest.pkl"), "hw_name": "aqi_random_forest"},
+        "Ridge Regression": {"local": os.path.join(str(model_dir), "aqi_ridge.pkl"), "hw_name": "aqi_ridge"},
+        "XGBoost": {"local": os.path.join(str(model_dir), "aqi_xgboost.pkl"), "hw_name": "aqi_xgboost"},
     }
 
     loaded_models = {}
     for model_name, cfg in model_configs.items():
         model = None
-        # Try Hopsworks first
-        if MLOPS_AVAILABLE:
-            model = get_model_from_hopsworks(cfg["hw_name"])
+        # Optional Hopsworks download only if explicitly requested
+        if from_hopsworks and MLOPS_AVAILABLE:
+            try:
+                model = get_model_from_hopsworks(cfg["hw_name"])
+            except Exception as e:
+                print(f"Warning: Failed to load {model_name} from Hopsworks: {e}")
             
-        # Fallback to local
-        if model is None and os.path.exists(cfg["local"]):
+        # Fast direct local loading (Default)
+        if model is None:
+            if not os.path.exists(cfg["local"]):
+                raise FileNotFoundError(f"Required local model not found: {cfg['local']}")
             model = joblib.load(cfg["local"])
             
-        if model is not None:
-            loaded_models[model_name] = model
-
-    if not loaded_models:
-        raise FileNotFoundError(f"No trained models found locally or in Hopsworks.")
+        loaded_models[model_name] = model
 
     return loaded_models
 
 
-def get_next_hour_predictions(data_file=DATA_FILE, model_dir=MODEL_DIR):
+def get_next_hour_predictions(data_file=DATA_FILE, model_dir=MODEL_DIR, include_shap=False):
     """
-    Generate next-hour AQI predictions for all cities in the dataset.
+    Generate next-hour AQI predictions for all cities in the dataset using local files.
 
     Returns:
         pd.DataFrame: Contains current AQI, timestamps, individual model predictions,
                       ensemble prediction, and categories.
     """
-    models = load_trained_models(model_dir)
+    models = load_trained_models(model_dir=model_dir, from_hopsworks=False)
 
     if not os.path.exists(data_file):
-        raise FileNotFoundError(f"Processed features data file '{data_file}' not found.")
+        raise FileNotFoundError(f"Required local data file not found: {data_file}")
 
     df = pd.read_csv(data_file)
     df["timestamp"] = pd.to_datetime(df["timestamp"])
@@ -112,10 +116,13 @@ def get_next_hour_predictions(data_file=DATA_FILE, model_dir=MODEL_DIR):
         current_cat = get_aqi_category(current_aqi_val)
         next_hour_cat = get_aqi_category(ensemble_pred)
         
-        # Generate SHAP optionally
+        # Optional SHAP calculation (deferred by default)
         shap_json = None
-        if MLOPS_AVAILABLE and "Random Forest" in models:
-            shap_json = generate_local_explanation(models["Random Forest"], X.values[0], FEATURES)
+        if include_shap and MLOPS_AVAILABLE and "Random Forest" in models:
+            try:
+                shap_json = generate_local_explanation(models["Random Forest"], X.values[0], FEATURES)
+            except Exception:
+                shap_json = None
 
         results.append({
             "city": city,
@@ -151,7 +158,7 @@ def get_next_hour_predictions(data_file=DATA_FILE, model_dir=MODEL_DIR):
 
 
 if __name__ == "__main__":
-    print("Loading models...")
+    print("Loading models locally...")
     models = load_trained_models(MODEL_DIR)
     for m_name in models:
         print(f"{m_name} loaded successfully.")
