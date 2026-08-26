@@ -64,6 +64,19 @@ def load_trained_models(model_dir=MODEL_DIR, from_hopsworks=False):
             
         loaded_models[model_name] = model
 
+    # Load LSTM if available locally
+    lstm_local_path = os.path.join(str(model_dir), "aqi_lstm.keras")
+    scaler_local_path = os.path.join(str(model_dir), "aqi_lstm_scaler.pkl")
+    
+    if os.path.exists(lstm_local_path) and os.path.exists(scaler_local_path):
+        try:
+            import tensorflow as tf
+            loaded_models["LSTM"] = tf.keras.models.load_model(lstm_local_path)
+            loaded_models["scaler"] = joblib.load(scaler_local_path)
+            print("LSTM model and scaler loaded successfully.")
+        except Exception as e:
+            print(f"Warning: Failed to load LSTM model or scaler: {e}")
+
     return loaded_models
 
 
@@ -106,10 +119,30 @@ def get_next_hour_predictions(data_file=DATA_FILE, model_dir=MODEL_DIR, include_
         X = pd.DataFrame([[latest[feature] for feature in FEATURES]], columns=FEATURES)
 
         model_preds = {}
-        for model_name, model in models.items():
-            model_preds[model_name] = float(model.predict(X)[0])
+        # 1. Prediction for static models
+        for m_name in ["Random Forest", "Ridge Regression", "XGBoost"]:
+            if m_name in models:
+                model_preds[m_name] = float(models[m_name].predict(X)[0])
 
-        preds_list = list(model_preds.values())
+        # 2. Prediction for LSTM sequential model
+        if "LSTM" in models and "scaler" in models:
+            try:
+                if len(city_data) >= 24:
+                    last_24 = city_data.sort_values("timestamp").iloc[-24:].copy()
+                    scaler = models["scaler"]
+                    last_24_scaled = scaler.transform(last_24[FEATURES])
+                    X_seq = np.expand_dims(last_24_scaled, axis=0) # shape: (1, 24, num_features)
+                    
+                    lstm_pred = float(models["LSTM"](X_seq, training=False)[0][0])
+                    model_preds["LSTM"] = lstm_pred
+                else:
+                    model_preds["LSTM"] = np.nan
+            except Exception as e:
+                print(f"Warning: LSTM prediction failed for {city}: {e}")
+                model_preds["LSTM"] = np.nan
+
+        # 3. Ensemble computation
+        preds_list = [val for m_name, val in model_preds.items() if not pd.isna(val)]
         ensemble_pred = sum(preds_list) / len(preds_list) if preds_list else 0.0
 
         current_aqi_val = float(latest["aqi"])
@@ -133,6 +166,7 @@ def get_next_hour_predictions(data_file=DATA_FILE, model_dir=MODEL_DIR, include_
             "random_forest": model_preds.get("Random Forest", np.nan),
             "ridge": model_preds.get("Ridge Regression", np.nan),
             "xgboost": model_preds.get("XGBoost", np.nan),
+            "lstm": model_preds.get("LSTM", np.nan),
             "ensemble": ensemble_pred,
             "next_hour_aqi": ensemble_pred,
             "next_hour_category": next_hour_cat,
@@ -185,6 +219,8 @@ if __name__ == "__main__":
             print(f"Ridge Regression: {row['ridge']:.2f}")
         if not pd.isna(row["xgboost"]):
             print(f"XGBoost: {row['xgboost']:.2f}")
+        if not pd.isna(row["lstm"]):
+            print(f"LSTM: {row['lstm']:.2f}")
         print(f"Ensemble Prediction: {row['ensemble']:.2f}")
 
     print("\n" + "=" * 70)

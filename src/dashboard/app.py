@@ -465,7 +465,7 @@ with tab_72h:
         st.markdown("<div class='card-label'>Multi-Model Comparison Over 72 Hours</div>", unsafe_allow_html=True)
         melted_models = fc_df.melt(
             id_vars=["timestamp_dt", "step", "category"],
-            value_vars=["random_forest", "ridge", "xgboost", "ensemble"],
+            value_vars=[col for col in ["random_forest", "ridge", "xgboost", "lstm", "ensemble"] if col in fc_df.columns],
             var_name="Model",
             value_name="Predicted AQI"
         )
@@ -473,6 +473,7 @@ with tab_72h:
             "random_forest": "Random Forest",
             "ridge": "Ridge Regression",
             "xgboost": "XGBoost",
+            "lstm": "LSTM",
             "ensemble": "Ensemble"
         })
 
@@ -480,8 +481,8 @@ with tab_72h:
             x=alt.X("timestamp_dt:T", title="Timestamp (UTC)"),
             y=alt.Y("Predicted AQI:Q", title="AQI Prediction"),
             color=alt.Color("Model:N", scale=alt.Scale(
-                domain=["Random Forest", "Ridge Regression", "XGBoost", "Ensemble"],
-                range=["#10b981", "#f59e0b", "#ef4444", "#38bdf8"]
+                domain=["Random Forest", "Ridge Regression", "XGBoost", "LSTM", "Ensemble"],
+                range=["#10b981", "#f59e0b", "#ef4444", "#a855f7", "#38bdf8"]
             )),
             tooltip=["Model:N", alt.Tooltip("timestamp_dt:T", title="Timestamp"), alt.Tooltip("Predicted AQI:Q", format=".2f")]
         ).properties(height=300).interactive()
@@ -490,8 +491,19 @@ with tab_72h:
 
         # Data Table
         with st.expander("View Complete 72-Hour Hourly Forecast Data"):
-            disp_fc = fc_df[["step", "timestamp", "random_forest", "ridge", "xgboost", "ensemble", "category"]].copy()
-            disp_fc.columns = ["Step (t+h)", "Timestamp", "Random Forest", "Ridge Regression", "XGBoost", "Ensemble Prediction", "AQI Category"]
+            cols_to_use = [col for col in ["step", "timestamp", "random_forest", "ridge", "xgboost", "lstm", "ensemble", "category"] if col in fc_df.columns]
+            disp_fc = fc_df[cols_to_use].copy()
+            rename_map = {
+                "step": "Step (t+h)",
+                "timestamp": "Timestamp",
+                "random_forest": "Random Forest",
+                "ridge": "Ridge Regression",
+                "xgboost": "XGBoost",
+                "lstm": "LSTM",
+                "ensemble": "Ensemble Prediction",
+                "category": "AQI Category"
+            }
+            disp_fc.rename(columns=rename_map, inplace=True)
             st.dataframe(disp_fc, use_container_width=True, hide_index=True)
 
 # ============================================================
@@ -501,25 +513,37 @@ with tab_comparison:
     st.markdown("<div class='card-label'>All-City AQI Summary Table</div>", unsafe_allow_html=True)
     
     # Styled Table Overview
-    table_display = predictions_data[[
+    cols_comparison = [
         "city", "current_aqi", "current_category", 
         "next_hour_aqi", "next_hour_category",
-        "random_forest", "ridge", "xgboost", "ensemble", "prediction_timestamp"
-    ]].copy()
+        "random_forest", "ridge", "xgboost"
+    ]
+    if "lstm" in predictions_data.columns:
+        cols_comparison.append("lstm")
+    cols_comparison.extend(["ensemble", "prediction_timestamp"])
+
+    table_display = predictions_data[cols_comparison].copy()
     
     table_display["current_aqi"] = table_display["current_aqi"].round(2)
     table_display["next_hour_aqi"] = table_display["next_hour_aqi"].round(2)
     table_display["random_forest"] = table_display["random_forest"].round(2)
     table_display["ridge"] = table_display["ridge"].round(2)
     table_display["xgboost"] = table_display["xgboost"].round(2)
+    if "lstm" in predictions_data.columns:
+        table_display["lstm"] = table_display["lstm"].round(2)
     table_display["ensemble"] = table_display["ensemble"].round(2)
     table_display["prediction_timestamp"] = pd.to_datetime(table_display["prediction_timestamp"]).dt.strftime("%Y-%m-%d %H:%M UTC")
 
-    table_display.columns = [
+    col_names = [
         "City Name", "Current AQI", "Current Category", 
         "Next-Hour AQI", "Next-Hour Category",
-        "Random Forest", "Ridge Regression", "XGBoost", "Ensemble Prediction", "Prediction Timestamp"
+        "Random Forest", "Ridge Regression", "XGBoost"
     ]
+    if "lstm" in predictions_data.columns:
+        col_names.append("LSTM")
+    col_names.extend(["Ensemble Prediction", "Prediction Timestamp"])
+    
+    table_display.columns = col_names
 
     st.dataframe(table_display, use_container_width=True, hide_index=True)
 
@@ -641,11 +665,24 @@ with tab_models:
     </div>
     """, unsafe_allow_html=True)
 
-    perf_data = [
-        {"Model": "Ridge Regression", "MAE": 0.1209, "RMSE": 0.2497, "R²": 0.8245, "Status": "Active (Best Individual)"},
-        {"Model": "XGBoost", "MAE": 0.1401, "RMSE": 0.2687, "R²": 0.7968, "Status": "Active"},
-        {"Model": "Random Forest", "MAE": 0.1481, "RMSE": 0.2891, "R²": 0.7649, "Status": "Active"},
-    ]
+    try:
+        import json
+        perf_file = os.path.join(str(BASE_DIR), "models", "model_performance.json")
+        if os.path.exists(perf_file):
+            with open(perf_file, "r") as f:
+                perf_data = json.load(f)
+        else:
+            perf_data = [
+                {"Model": "Ridge Regression", "MAE": 0.1209, "RMSE": 0.2497, "R²": 0.8245, "Status": "Active (Best Individual)"},
+                {"Model": "XGBoost", "MAE": 0.1401, "RMSE": 0.2687, "R²": 0.7968, "Status": "Active"},
+                {"Model": "Random Forest", "MAE": 0.1481, "RMSE": 0.2891, "R²": 0.7649, "Status": "Active"},
+            ]
+    except Exception:
+        perf_data = [
+            {"Model": "Ridge Regression", "MAE": 0.1209, "RMSE": 0.2497, "R²": 0.8245, "Status": "Active (Best Individual)"},
+            {"Model": "XGBoost", "MAE": 0.1401, "RMSE": 0.2687, "R²": 0.7968, "Status": "Active"},
+            {"Model": "Random Forest", "MAE": 0.1481, "RMSE": 0.2891, "R²": 0.7649, "Status": "Active"},
+        ]
 
     st.dataframe(pd.DataFrame(perf_data), use_container_width=True, hide_index=True)
 
@@ -658,7 +695,7 @@ with tab_models:
             <li><strong>Target Variable:</strong> <code>target_aqi</code> (represents AQI of the NEXT hour).</li>
             <li><strong>Features Used (19 total):</strong> Temperature, Humidity, Wind Speed, PM2.5, PM10, CO, NO2, O3, SO2, NH3, NO, Hour, Day, Month, Day of Week, AQI Lag 1, AQI Lag 2, AQI Change, AQI 3-hour Rolling Mean.</li>
             <li><strong>72-Hour Forecast Architecture:</strong> Autoregressive multi-step recursive forecasting over 72 steps without target data leakage. Integrates OpenWeather 5-day weather and 4-day pollutant forecast APIs.</li>
-            <li><strong>Ensemble Architecture:</strong> Simple equal-weight ensemble averaging predictions of Random Forest, Ridge Regression, and XGBoost.</li>
+            <li><strong>Ensemble Architecture:</strong> Simple equal-weight ensemble averaging predictions of Random Forest, Ridge Regression, XGBoost, and LSTM (if available).</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)

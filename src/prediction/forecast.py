@@ -158,6 +158,19 @@ def forecast_next_72_hours(city, hours=72, data_file=DATA_FILE, model_dir=MODEL_
     weather_source = "OpenWeather API 5-Day Forecast" if live_weather_dict else "Historical Baseline Estimation"
     pollutant_source = "OpenWeather API Air Pollution Forecast" if live_pollutants_dict else "Historical Baseline Estimation"
 
+    # Initialize rolling scaled history buffer for LSTM
+    scaled_history_seq = []
+    if "LSTM" in models and "scaler" in models:
+        try:
+            scaler = models["scaler"]
+            if len(city_data) >= 24:
+                last_24 = city_data.iloc[-24:].copy()
+                scaled_history_seq = list(scaler.transform(last_24[FEATURES]))
+            else:
+                scaled_history_seq = list(np.zeros((24, len(FEATURES))))
+        except Exception as e:
+            print(f"Warning: Failed to initialize LSTM history sequence: {e}")
+
     forecast_results = []
 
     # 5. Fast Recursive 72-Hour Forecasting Loop
@@ -229,10 +242,28 @@ def forecast_next_72_hours(city, hours=72, data_file=DATA_FILE, model_dir=MODEL_
 
         # Predict using models
         model_preds = {}
-        for m_name, model in models.items():
-            model_preds[m_name] = float(model.predict(X_step_df)[0])
+        # 1. Predictions for static models
+        for m_name in ["Random Forest", "Ridge Regression", "XGBoost"]:
+            if m_name in models:
+                model_preds[m_name] = float(models[m_name].predict(X_step_df)[0])
 
-        preds_list = list(model_preds.values())
+        # 2. Prediction for LSTM sequential model
+        if "LSTM" in models and "scaler" in models and len(scaled_history_seq) > 0:
+            try:
+                scaler = models["scaler"]
+                curr_scaled = scaler.transform(X_step_df)[0]
+                scaled_history_seq.append(curr_scaled)
+                
+                # Fetch sequence input window
+                lstm_seq_input = np.array(scaled_history_seq[-24:]).reshape(1, 24, len(FEATURES))
+                lstm_pred = float(models["LSTM"](lstm_seq_input, training=False)[0][0])
+                model_preds["LSTM"] = lstm_pred
+            except Exception as e:
+                print(f"Warning: LSTM step prediction failed: {e}")
+                model_preds["LSTM"] = np.nan
+
+        # 3. Ensemble computation
+        preds_list = [val for name, val in model_preds.items() if name in ["Random Forest", "Ridge Regression", "XGBoost", "LSTM"] and not pd.isna(val)]
         ensemble_pred = float(np.mean(preds_list)) if preds_list else 0.0
 
         # Update recursive state for next step
@@ -252,6 +283,7 @@ def forecast_next_72_hours(city, hours=72, data_file=DATA_FILE, model_dir=MODEL_
             "random_forest": model_preds.get("Random Forest", np.nan),
             "ridge": model_preds.get("Ridge Regression", np.nan),
             "xgboost": model_preds.get("XGBoost", np.nan),
+            "lstm": model_preds.get("LSTM", np.nan),
             "ensemble": ensemble_pred,
             "predicted_aqi": ensemble_pred,
             "category": get_aqi_category(ensemble_pred),

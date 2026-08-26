@@ -11,6 +11,7 @@ from src.alerts.alert_service import (
     check_and_trigger_alerts,
     CATEGORY_SEVERITY
 )
+from src.alerts.email_alert import send_aqi_email
 
 TEST_DIR = Path("tests/scratch_alerts_test")
 TEST_STATE_FILE = TEST_DIR / "alert_state.json"
@@ -148,3 +149,40 @@ class TestAQIAlerts(unittest.TestCase):
             state = load_alert_state(TEST_STATE_FILE)
             self.assertTrue(state["Lahore"]["active"])
             self.assertEqual(state["Lahore"]["last_alerted_category"], "Unhealthy")
+
+    @patch("src.alerts.email_alert.smtplib.SMTP")
+    def test_alerts_disabled(self, mock_smtp):
+        """Verify that when ALERT_EMAIL_ENABLED=false, send_aqi_email returns early without checking SMTP config or calling SMTP."""
+        with patch.dict("os.environ", {"ALERT_EMAIL_ENABLED": "false"}):
+            send_aqi_email("Lahore", 180.0, "Unhealthy", "2026-08-26T23:00:00", "Rec", "Unhealthy")
+            mock_smtp.assert_not_called()
+
+    def test_missing_smtp_config(self):
+        """Verify that when ALERT_EMAIL_ENABLED=true and SMTP config is missing, send_aqi_email raises ValueError."""
+        with patch.dict("os.environ", {"ALERT_EMAIL_ENABLED": "true"}, clear=True):
+            with self.assertRaises(ValueError) as context:
+                send_aqi_email("Lahore", 180.0, "Unhealthy", "2026-08-26T23:00:00", "Rec", "Unhealthy")
+            self.assertIn("AQI Alert configuration error: Missing environment variables", str(context.exception))
+
+    @patch("src.alerts.email_alert.smtplib.SMTP")
+    def test_valid_mocked_smtp_config(self, mock_smtp):
+        """Verify that when ALERT_EMAIL_ENABLED=true and valid SMTP config is provided, send_aqi_email successfully initiates SMTP connection and sends mail."""
+        env_dict = {
+            "ALERT_EMAIL_ENABLED": "true",
+            "ALERT_EMAIL_TO": "recipient@example.com",
+            "SMTP_HOST": "smtp.example.com",
+            "SMTP_PORT": "587",
+            "SMTP_USERNAME": "user@example.com",
+            "SMTP_PASSWORD": "password"
+        }
+        with patch.dict("os.environ", env_dict):
+            mock_server = MagicMock()
+            mock_smtp.return_value = mock_server
+            
+            send_aqi_email("Lahore", 180.0, "Unhealthy", "2026-08-26T23:00:00", "Rec", "Unhealthy")
+            
+            mock_smtp.assert_called_once_with("smtp.example.com", 587, timeout=10)
+            mock_server.starttls.assert_called_once()
+            mock_server.login.assert_called_once_with("user@example.com", "password")
+            mock_server.sendmail.assert_called_once()
+            mock_server.quit.assert_called_once()
