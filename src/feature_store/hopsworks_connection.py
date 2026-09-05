@@ -1,7 +1,11 @@
 import os
 import sys
-import hopsworks
 from dotenv import load_dotenv
+
+try:
+    import hopsworks
+except ImportError:
+    hopsworks = None
 
 # Workaround for Hopsworks SDK bug on Windows where it hardcodes '/tmp' for certificates
 if sys.platform == 'win32':
@@ -25,6 +29,9 @@ def get_hopsworks_project():
         
     if not project_name:
         raise ValueError("HOPSWORKS_PROJECT_NAME environment variable not found. Please set it in .env")
+        
+    if hopsworks is None:
+        raise ImportError("The 'hopsworks' library is not installed. Please install it to use Hopsworks Feature Store integrations.")
         
     project = hopsworks.login(
         api_key_value=api_key,
