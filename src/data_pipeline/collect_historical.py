@@ -29,9 +29,9 @@ URL = "https://api.openweathermap.org/data/2.5/air_pollution/history"
 OUTPUT_FILE = "data/historical_data.csv"
 
 
-# Match the historical weather period
-START_DATE = "2026-07-24"
-END_DATE = "2026-08-23"
+# Collect data for the last 30 days up to today
+END_DATE = datetime.now().strftime("%Y-%m-%d")
+START_DATE = (datetime.now() - pd.Timedelta(days=30)).strftime("%Y-%m-%d")
 
 
 # ---------------------------------------------------------

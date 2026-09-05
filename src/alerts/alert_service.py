@@ -64,73 +64,83 @@ def save_alert_state(state, state_file=STATE_FILE):
             temp_path.unlink()
         raise RuntimeError(f"Failed to atomically write alert state file: {e}")
 
+from filelock import FileLock, Timeout
+
 def check_and_trigger_alerts(predictions_df, state_file=STATE_FILE):
     """
     Evaluates predictions against the alert threshold and triggers notifications.
+    Uses FileLock to prevent concurrent access corruption.
     """
-    # Load alert threshold level
-    alert_level_name = os.getenv("AQI_ALERT_LEVEL", "Unhealthy").strip()
-    if alert_level_name not in CATEGORY_SEVERITY:
-        print(f"Warning: Invalid AQI_ALERT_LEVEL '{alert_level_name}'. Defaulting to 'Unhealthy'.")
-        alert_level_name = "Unhealthy"
+    lock_file = state_file.with_suffix('.json.lock')
+    lock = FileLock(lock_file, timeout=10)
+    
+    try:
+        with lock:
+            # Load alert threshold level
+            alert_level_name = os.getenv("AQI_ALERT_LEVEL", "Unhealthy").strip()
+            if alert_level_name not in CATEGORY_SEVERITY:
+                print(f"Warning: Invalid AQI_ALERT_LEVEL '{alert_level_name}'. Defaulting to 'Unhealthy'.")
+                alert_level_name = "Unhealthy"
 
-    threshold_severity = CATEGORY_SEVERITY[alert_level_name]
-    state = load_alert_state(state_file)
+            threshold_severity = CATEGORY_SEVERITY[alert_level_name]
+            state = load_alert_state(state_file)
 
-    for _, row in predictions_df.iterrows():
-        city = row["city"]
-        predicted_aqi = float(row["next_hour_aqi"])
-        category = row["next_hour_category"]
-        timestamp = row["prediction_timestamp"]
-        
-        # Ensure category is mapped to severity
-        current_severity = CATEGORY_SEVERITY.get(category, 5) # Default to highest severity if unknown
-        recommendation = RECOMMENDATIONS.get(category, "Avoid prolonged outdoor exertion.")
-
-        city_state = state.get(city, {"active": False, "last_alerted_category": None})
-
-        if current_severity >= threshold_severity:
-            # Determine if we should send an email
-            should_alert = False
-            is_escalation = False
-
-            if not city_state["active"]:
-                should_alert = True
-            else:
-                last_cat = city_state["last_alerted_category"]
-                last_severity = CATEGORY_SEVERITY.get(last_cat, 0)
-                if current_severity > last_severity:
-                    should_alert = True
-                    is_escalation = True
-
-            if should_alert:
-                alert_type = "Escalation Alert" if is_escalation else "Alert"
-                print(f"Triggering {alert_type} for {city}. AQI: {predicted_aqi:.2f} ({category})")
+            for _, row in predictions_df.iterrows():
+                city = row["city"]
+                predicted_aqi = float(row["next_hour_aqi"])
+                category = row["next_hour_category"]
+                timestamp = row["prediction_timestamp"]
                 
-                # Send SMTP email
-                send_aqi_email(
-                    city=city,
-                    aqi=predicted_aqi,
-                    category=category,
-                    timestamp=timestamp,
-                    recommendation=recommendation,
-                    threshold=alert_level_name
-                )
-                
-                # Update state
-                state[city] = {
-                    "active": True,
-                    "last_alerted_category": category
-                }
-            else:
-                print(f"AQI threshold reached for {city} but duplicate alert prevented (Category remains {category}).")
-        else:
-            # Recovery / Normal level
-            if city_state["active"]:
-                print(f"AQI recovered for {city}. Resetting alert state (Previous was {city_state['last_alerted_category']}).")
-                state[city] = {
-                    "active": False,
-                    "last_alerted_category": None
-                }
+                # Ensure category is mapped to severity
+                current_severity = CATEGORY_SEVERITY.get(category, 5) # Default to highest severity if unknown
+                recommendation = RECOMMENDATIONS.get(category, "Avoid prolonged outdoor exertion.")
 
-    save_alert_state(state, state_file)
+                city_state = state.get(city, {"active": False, "last_alerted_category": None})
+
+                if current_severity >= threshold_severity:
+                    # Determine if we should send an email
+                    should_alert = False
+                    is_escalation = False
+
+                    if not city_state["active"]:
+                        should_alert = True
+                    else:
+                        last_cat = city_state["last_alerted_category"]
+                        last_severity = CATEGORY_SEVERITY.get(last_cat, 0)
+                        if current_severity > last_severity:
+                            should_alert = True
+                            is_escalation = True
+
+                    if should_alert:
+                        alert_type = "Escalation Alert" if is_escalation else "Alert"
+                        print(f"Triggering {alert_type} for {city}. AQI: {predicted_aqi:.2f} ({category})")
+                        
+                        # Send SMTP email
+                        send_aqi_email(
+                            city=city,
+                            aqi=predicted_aqi,
+                            category=category,
+                            timestamp=timestamp,
+                            recommendation=recommendation,
+                            threshold=alert_level_name
+                        )
+                        
+                        # Update state
+                        state[city] = {
+                            "active": True,
+                            "last_alerted_category": category
+                        }
+                    else:
+                        print(f"AQI threshold reached for {city} but duplicate alert prevented (Category remains {category}).")
+                else:
+                    # Recovery / Normal level
+                    if city_state["active"]:
+                        print(f"AQI recovered for {city}. Resetting alert state (Previous was {city_state['last_alerted_category']}).")
+                        state[city] = {
+                            "active": False,
+                            "last_alerted_category": None
+                        }
+
+            save_alert_state(state, state_file)
+    except Timeout:
+        print("Warning: Could not acquire lock for alert state file. Skipping alert check this cycle.")

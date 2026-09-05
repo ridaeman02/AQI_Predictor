@@ -1,0 +1,5 @@
+{
+    "alert_threshold": "Unhealthy for Sensitive Groups (AQI >= 101)",
+    "auto_refresh": "1 Hour (Pipeline Interval)",
+    "browser_notifications": true
+}

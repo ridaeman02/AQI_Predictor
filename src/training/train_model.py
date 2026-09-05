@@ -99,16 +99,16 @@ def train_model():
     print("LOADING PROCESSED DATA")
     print("=" * 70)
 
+    df = None
     if HOPSWORKS_AVAILABLE:
         try:
+            print("Attempting to load data from Hopsworks Feature Store...")
             df = get_training_data(fallback_csv_path=INPUT_FILE)
         except Exception as e:
-            print(f"Could not use Hopsworks data fetching ({e}). Using direct local fallback.")
-            df = pd.read_csv(INPUT_FILE)
-            df["timestamp"] = pd.to_datetime(df["timestamp"])
-            df = df.sort_values("timestamp")
-    else:
-        print("Training data source: Local CSV fallback")
+            print(f"Warning: Could not use Hopsworks data fetching ({e}). Falling back to local data.")
+
+    if df is None:
+        print("Training data source: Local CSV fallback (data/processed_features.csv)")
         df = pd.read_csv(INPUT_FILE)
         df["timestamp"] = pd.to_datetime(df["timestamp"])
         df = df.sort_values("timestamp")

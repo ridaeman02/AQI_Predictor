@@ -127,13 +127,12 @@ def create_features():
         )
 
     # ==========================================
-    # 5. AQI CLEANING
+    # 5. CONVERT TO EPA CONTINUOUS AQI (0-500)
     # ==========================================
-
-    df["aqi"] = pd.to_numeric(
-        df["aqi"],
-        errors="coerce"
-    )
+    from src.utils.aqi_categories import calculate_epa_aqi
+    
+    print("\nConverting categorical API index to continuous EPA AQI (0-500 scale)...")
+    df["aqi"] = df["pm2_5"].apply(calculate_epa_aqi)
 
     df = df.dropna(
         subset=["aqi"]

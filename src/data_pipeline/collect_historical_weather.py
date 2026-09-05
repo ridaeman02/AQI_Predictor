@@ -14,7 +14,7 @@ CITIES = {
 }
 
 
-URL = "https://archive-api.open-meteo.com/v1/archive"
+URL = "https://api.open-meteo.com/v1/forecast"
 
 
 # ---------------------------------------------------------
@@ -32,24 +32,21 @@ URL = "https://archive-api.open-meteo.com/v1/archive"
 # UTC hours are definitely available.
 # ---------------------------------------------------------
 
-START_DATE = datetime(2026, 7, 24)
-END_DATE = datetime(2026, 8, 24)
+END_DATE = datetime.now()
+START_DATE = END_DATE - pd.Timedelta(days=30)
 
 
 all_data = []
 
 
-for city, coordinates in CITIES.items():
-
-    latitude, longitude = coordinates
+for city, (latitude, longitude) in CITIES.items():
 
     print(f"\nCollecting historical weather for {city}...")
 
     params = {
         "latitude": latitude,
         "longitude": longitude,
-        "start_date": START_DATE.strftime("%Y-%m-%d"),
-        "end_date": END_DATE.strftime("%Y-%m-%d"),
+        "past_days": 31,
         "hourly": (
             "temperature_2m,"
             "relative_humidity_2m,"
@@ -98,12 +95,12 @@ for city, coordinates in CITIES.items():
 
         # Keep exactly the same period as the AQI dataset
         start_timestamp = pd.Timestamp(
-            "2026-07-24 00:00:00",
+            START_DATE,
             tz="UTC"
         )
 
         end_timestamp = pd.Timestamp(
-            "2026-08-23 23:00:00",
+            END_DATE,
             tz="UTC"
         )
 

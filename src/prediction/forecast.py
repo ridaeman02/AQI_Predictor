@@ -129,7 +129,15 @@ def forecast_next_72_hours(city, hours=72, data_file=DATA_FILE, model_dir=MODEL_
 
     # 3. Extract baseline history
     latest_rows = city_data.iloc[-3:].copy()
-    base_t0 = latest_rows.iloc[-1]["timestamp"]
+    
+    # If live_api is True, we want the forecast to start from the current actual time
+    # so it correctly aligns with live OpenWeather forecasts instead of old CSV data.
+    if live_api:
+        # Determine the timezone of the existing data, if any, or default to UTC
+        csv_tz = latest_rows.iloc[-1]["timestamp"].tzinfo
+        base_t0 = pd.Timestamp.now(tz=csv_tz).floor("h")
+    else:
+        base_t0 = latest_rows.iloc[-1]["timestamp"]
     
     # aqi history queue: [AQI(t-2), AQI(t-1), AQI(t-0)]
     aqi_history = [
@@ -287,8 +295,12 @@ def forecast_next_72_hours(city, hours=72, data_file=DATA_FILE, model_dir=MODEL_
             "ensemble": ensemble_pred,
             "predicted_aqi": ensemble_pred,
             "category": get_aqi_category(ensemble_pred),
+            "temperature": curr_weather.get("temperature", np.nan),
+            "humidity": curr_weather.get("humidity", np.nan),
+            "wind_speed": curr_weather.get("wind_speed", np.nan),
             "weather_source": weather_source,
             "pollutant_source": pollutant_source,
+            "feature_vector": X_step_df.iloc[0].to_dict(),
             "shap_explanation": shap_json if k == 1 else None
         })
 
