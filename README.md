@@ -4,7 +4,7 @@ AirSight AI is an intelligent air-quality prediction platform that combines mach
 
 ---
 
-## ✨ Features
+## Features
 
 * **Multi-City AQI Monitoring:** Real-time metrics for major Pakistani cities.
 * **AI-Powered Predictions:** Machine learning models trained on historical meteorological and pollutant data.
@@ -17,7 +17,7 @@ AirSight AI is an intelligent air-quality prediction platform that combines mach
 
 ---
 
-## 🌍 Supported Cities
+## Supported Cities
 
 | City | Supported |
 | :--- | :--- |
@@ -29,7 +29,7 @@ AirSight AI is an intelligent air-quality prediction platform that combines mach
 
 ---
 
-## 🤖 Machine Learning
+## Machine Learning
 
 The platform leverages an ensemble of machine learning models to capture the complex non-linear relationships between atmospheric conditions and AQI.
 
@@ -44,7 +44,7 @@ The platform leverages an ensemble of machine learning models to capture the com
 
 ---
 
-## 🔮 Forecasting
+## Forecasting
 
 The application features a custom, recursive time-series forecasting engine.
 
@@ -59,7 +59,7 @@ Extends predictions out to 72 hours using auto-regressive lags and live weather 
 
 ---
 
-## 🌤️ Air Quality Windows
+## Air Quality Windows
 
 This signature feature converts complex 72-hour AQI predictions into actionable, human-readable recommendations. It evaluates periods based on distinct physical exertion profiles:
 * General Outdoor
@@ -78,7 +78,7 @@ It outputs:
 
 ---
 
-## 🧠 Explainable AI
+## Explainable AI
 
 AirSight AI integrates **SHAP (SHapley Additive exPlanations)** to build trust and transparency. 
 
@@ -87,7 +87,7 @@ AirSight AI integrates **SHAP (SHapley Additive exPlanations)** to build trust a
 
 ---
 
-## 🌦️ Weather Data
+## Weather Data
 
 Predictions rely on core meteorological variables tightly coupled with pollutant concentrations:
 * Temperature (°C)
@@ -98,7 +98,7 @@ Future predictions utilize the OpenWeather API to retrieve accurate upcoming wea
 
 ---
 
-## 📊 Data Pipeline
+## Data Pipeline
 
 ```text
 Data Collection (APIs/Sensors)
@@ -117,7 +117,7 @@ Feature Engineering (Lags, Rolling Means)
 
 ---
 
-## ⚙️ Project Architecture
+## Project Architecture
 
 ```text
                     AIRSIGHT AI
@@ -144,7 +144,7 @@ Feature Engineering (Lags, Rolling Means)
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 AirSight-AI/
@@ -164,12 +164,12 @@ AirSight-AI/
 ├── .github/
 │   └── workflows/            # MLOps & Alert CI/CD pipelines
 ├── requirements.txt          # Dependencies
-└── README.md                 # You are here
+└── README.md                 # Project documentation
 ```
 
 ---
 
-## 🚀 Installation
+## Installation
 
 ### Requirements
 * Python 3.9+ 
@@ -193,7 +193,7 @@ pip install -r requirements.txt
 
 ---
 
-## 🔐 Environment Variables
+## Environment Variables
 
 The project safely segregates secrets based on functionality using a `.env` file or cloud secrets manager. 
 
@@ -208,7 +208,7 @@ The project safely segregates secrets based on functionality using a `.env` file
 
 ---
 
-## 🖥️ Running Locally
+## Running Locally
 
 ```bash
 python -m streamlit run src/dashboard/app.py
@@ -217,7 +217,7 @@ Upon execution, Streamlit will boot the application locally (typically at `http:
 
 ---
 
-## ☁️ Streamlit Community Cloud Deployment
+## Streamlit Community Cloud Deployment
 
 AirSight AI is thoroughly optimized for seamless deployment to Streamlit Community Cloud:
 
@@ -235,7 +235,7 @@ AirSight AI is thoroughly optimized for seamless deployment to Streamlit Communi
 
 ---
 
-## ☁️ Other Deployment Options
+## Other Deployment Options
 
 | Platform | Compatible | Notes |
 | :--- | :--- | :--- |
@@ -246,7 +246,7 @@ AirSight AI is thoroughly optimized for seamless deployment to Streamlit Communi
 
 ---
 
-## 🔄 MLOps
+## MLOps
 
 The repository contains three automated GitHub Actions workflows:
 1. **Feature Pipeline:** Ingests live data and updates Hopsworks.
@@ -255,7 +255,7 @@ The repository contains three automated GitHub Actions workflows:
 
 ---
 
-## 🚨 Alerting
+## Alerting
 
 AirSight AI features an independent alerting daemon.
 * **Trigger:** The system predicts an AQI value exceeding predefined health thresholds for the next 24 hours.
@@ -264,7 +264,7 @@ AirSight AI features an independent alerting daemon.
 
 ---
 
-## 🧪 Testing
+## Testing
 
 The project maintains a rigorous, automated `pytest` suite covering edge cases, time horizons, SHAP lazy loading, and midnight crossings.
 
@@ -275,7 +275,7 @@ python -m pytest tests/
 
 ---
 
-## 🔒 Security
+## Security
 
 * All credentials (`OPENWEATHER_API_KEY`, `HOPSWORKS_API_KEY`, `SMTP_PASSWORD`) are strictly loaded via `os.getenv()`.
 * The `.env` file is explicitly ignored in `.gitignore`.
@@ -283,7 +283,7 @@ python -m pytest tests/
 
 ---
 
-## 📌 Important Files
+## Important Files
 
 | File/Directory | Purpose |
 | :--- | :--- |
@@ -298,7 +298,7 @@ python -m pytest tests/
 
 ---
 
-## ⚠️ Limitations
+## Limitations
 
 * **Forecast Accuracy:** The 72-hour forecast depends heavily on the accuracy of the upstream OpenWeather meteorological predictions.
 * **API Limits:** Extreme usage of the live forecast tool may require a premium OpenWeather tier if rate limits are exceeded.
@@ -306,7 +306,7 @@ python -m pytest tests/
 
 ---
 
-## 🛣️ Future Improvements
+## Future Improvements
 
 * Automated UI/E2E testing (e.g., `pytest-playwright`).
 * Support for additional global cities.
@@ -314,15 +314,9 @@ python -m pytest tests/
 
 ---
 
-## 👩‍💻 Development
+## Development
 
 1. Ensure Python 3.9+ is installed.
 2. Setup the virtual environment and install dependencies via `requirements.txt`.
 3. Create a `.env` file in the root directory for local testing.
 4. Run `python -m pytest tests/` before submitting pull requests.
-
----
-
-## 📄 License
-
-License information has not yet been specified.
