@@ -29,9 +29,17 @@ from src.dashboard.components.settings import load_settings, render_settings
 # ============================================================
 # PAGE CONFIGURATION
 # ============================================================
+LOGO_PATH = BASE_DIR / "src" / "dashboard" / "assets" / "logo.png"
+
+try:
+    from PIL import Image
+    icon = Image.open(str(LOGO_PATH)) if LOGO_PATH.exists() else None
+except Exception:
+    icon = None
+
 st.set_page_config(
     page_title="AirSight AI",
-    page_icon=None,
+    page_icon=icon,
     layout="wide",
     initial_sidebar_state="expanded"
 )

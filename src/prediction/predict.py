@@ -13,9 +13,10 @@ if str(BASE_DIR) not in sys.path:
 from src.utils.aqi_categories import get_aqi_category
 
 try:
+    from src.feature_store.hopsworks_connection import HOPSWORKS_AVAILABLE
     from src.feature_store.fetch_model import get_model_from_hopsworks
     from src.explainability.shap_analysis import generate_local_explanation
-    MLOPS_AVAILABLE = True
+    MLOPS_AVAILABLE = HOPSWORKS_AVAILABLE
 except ImportError:
     MLOPS_AVAILABLE = False
 
@@ -74,6 +75,9 @@ def load_trained_models(model_dir=MODEL_DIR, from_hopsworks=False):
             loaded_models["LSTM"] = tf.keras.models.load_model(lstm_local_path)
             loaded_models["scaler"] = joblib.load(scaler_local_path)
             print("LSTM model and scaler loaded successfully.")
+        except (ImportError, ModuleNotFoundError):
+            # TensorFlow not installed in lightweight dashboard runtime
+            pass
         except Exception as e:
             print(f"Warning: Failed to load LSTM model or scaler: {e}")
 

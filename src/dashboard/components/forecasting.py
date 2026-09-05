@@ -286,7 +286,7 @@ def render_forecasting(selected_city):
 
     st.markdown("<div style='margin-bottom: 0.5rem; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted);'>Multi-Model Forecast Comparison</div>", unsafe_allow_html=True)
     
-    models_to_compare = [col for col in ["random_forest", "ridge", "xgboost", "lstm", "ensemble"] if col in fc_df.columns]
+    models_to_compare = [col for col in ["random_forest", "ridge", "xgboost", "lstm", "ensemble"] if col in fc_df.columns and not fc_df[col].isna().all()]
     id_columns = [col for col in ["timestamp_dt", "step", "category"] if col in fc_df.columns]
     
     comp_df = fc_df.melt(

@@ -8,5 +8,10 @@
 # Hopsworks Feature Store & Model Registry (Python 3.10 - 3.13 compatible)
 hopsworks==5.0.3
 
+# Deep Learning & LSTM Training
+tensorflow>=2.16.0
+keras>=3.0.0
+h5py>=3.11.0
+
 # Automated Test Suite
 pytest>=8.0.0

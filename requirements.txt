@@ -1,6 +1,8 @@
 # ============================================================
-# AirSight AI — Streamlit Community Cloud Runtime Dependencies
+# AirSight AI — Streamlit Community Cloud Runtime Requirements
 # ============================================================
+# Target Environment: Python 3.11 - 3.13 (Linux manylinux)
+# Production inference & interactive dashboard runtime
 
 # Core Data & Numerics
 numpy>=1.26.0,<3.0.0
@@ -13,18 +15,13 @@ xgboost>=2.0.0
 shap>=0.44.0
 joblib>=1.3.0
 
-# Deep Learning (LSTM Model Inference)
-# Note: prebuilt wheels are readily fetched for Python 3.10-3.13 without source compilation
-tensorflow>=2.16.0
-keras>=3.0.0
-
 # Streamlit UI & Visualizations
 streamlit>=1.35.0
 altair>=5.0.0
 plotly>=5.18.0
 pillow>=10.0.0
 
-# Utilities & Networking
+# Networking & Utilities
 requests>=2.31.0
 python-dotenv>=1.0.0
 filelock>=3.13.0

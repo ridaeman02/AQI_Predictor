@@ -45,7 +45,7 @@ def render_alerts_system(predictions_data, BASE_DIR):
                     <div style="background: var(--bg-card); backdrop-filter: blur(16px); border: 1px solid {cat_border}; border-radius: 16px; padding: 1.4rem; margin-bottom: 1rem; position: relative;">
                         <div style="position: absolute; top: 1.2rem; right: 1.2rem; width: 10px; height: 10px; border-radius: 50%; background-color: {cat_color}; box-shadow: 0 0 10px {cat_color};"></div>
                         <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.08em;">ACTIVE ALERT</div>
-                        <div style="font-size: 1.6rem; font-weight: 800; color: #ffffff; margin-top: 0.3rem;">{city}</div>
+                        <div style="font-size: 1.6rem; font-weight: 800; color: var(--text-main, #0f172a); margin-top: 0.3rem;">{city}</div>
                         <div style="font-size: 0.9rem; font-weight: 800; background: {cat_bg}; color: {cat_color}; border: 1px solid {cat_border}; padding: 0.3rem 0.8rem; border-radius: 20px; display: inline-block; margin-top: 0.6rem;">{cat}</div>
                         <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.8rem; line-height: 1.4;">
                             SMTP notification triggered. State locked to prevent duplicate email alerts.
