@@ -1,5 +1,9 @@
 # AirSight AI
 
+**Live Application:** [airsight-ai-njbj5zndomaymcwgdkuuca.streamlit.app](https://airsight-ai-njbj5zndomaymcwgdkuuca.streamlit.app/)
+
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://airsight-ai-njbj5zndomaymcwgdkuuca.streamlit.app/)
+
 AirSight AI is an intelligent air-quality prediction platform that combines machine learning, weather information, 72-hour forecasting, SHAP explainability, AQI alerts, and actionable outdoor-time recommendations. Designed as a high-end environmental intelligence dashboard, it helps users understand real-time pollution metrics and safely plan outdoor activities.
 
 ---
@@ -219,7 +223,10 @@ Upon execution, Streamlit will boot the application locally (typically at `http:
 
 ## Streamlit Community Cloud Deployment
 
-AirSight AI is thoroughly optimized for seamless deployment to Streamlit Community Cloud:
+AirSight AI is live and deployed on Streamlit Community Cloud:
+* **Live Application:** [https://airsight-ai-njbj5zndomaymcwgdkuuca.streamlit.app/](https://airsight-ai-njbj5zndomaymcwgdkuuca.streamlit.app/)
+
+To deploy your own instance:
 
 1. Push the project to GitHub (ensure `models/` and `data/` are committed).
 2. Log in to Streamlit Community Cloud and click "Create app".
