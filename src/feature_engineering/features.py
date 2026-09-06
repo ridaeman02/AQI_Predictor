@@ -1,9 +1,17 @@
 import os
+import sys
+from pathlib import Path
 import pandas as pd
 
+# Add project root to sys.path
+BASE_DIR = Path(__file__).resolve().parents[2]
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
-INPUT_FILE = "data/combined_historical_data.csv"
-OUTPUT_FILE = "data/processed_features.csv"
+from src.utils.aqi_categories import calculate_epa_aqi
+
+INPUT_FILE = os.path.join(str(BASE_DIR), "data", "combined_historical_data.csv")
+OUTPUT_FILE = os.path.join(str(BASE_DIR), "data", "processed_features.csv")
 
 
 def create_features():
@@ -129,8 +137,6 @@ def create_features():
     # ==========================================
     # 5. CONVERT TO EPA CONTINUOUS AQI (0-500)
     # ==========================================
-    from src.utils.aqi_categories import calculate_epa_aqi
-    
     print("\nConverting categorical API index to continuous EPA AQI (0-500 scale)...")
     df["aqi"] = df["pm2_5"].apply(calculate_epa_aqi)
 
