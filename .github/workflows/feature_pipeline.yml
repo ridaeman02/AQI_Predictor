@@ -20,7 +20,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
+        python-version: '3.12'
         cache: 'pip'
 
     - name: Install dependencies
@@ -61,7 +61,8 @@ jobs:
         git config --local user.name "GitHub Action"
         git add data/alert_state.json || true
         git commit -m "Update hourly AQI alert state [skip ci]" || true
-        git push
+        git pull --rebase origin main || true
+        git push || true
 
     - name: Upload features to Hopsworks
       env:

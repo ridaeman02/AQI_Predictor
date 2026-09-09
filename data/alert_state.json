@@ -1,17 +1,21 @@
 {
   "Lahore": {
-    "active": true,
-    "last_alerted_category": "Unhealthy"
+    "active": false,
+    "last_alerted_category": null
   },
   "Karachi": {
-    "active": true,
-    "last_alerted_category": "Unhealthy"
+    "active": false,
+    "last_alerted_category": null
   },
   "Islamabad": {
     "active": true,
     "last_alerted_category": "Unhealthy"
   },
   "Quetta": {
+    "active": false,
+    "last_alerted_category": null
+  },
+  "Peshawar": {
     "active": true,
     "last_alerted_category": "Unhealthy"
   }

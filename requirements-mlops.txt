@@ -1,17 +1,19 @@
 # ============================================================
 # AirSight AI — MLOps & GitHub Actions Training Dependencies
 # ============================================================
+# Target Environment: Python 3.12 (Linux manylinux)
 
 # Inherit dashboard runtime requirements
 -r requirements.txt
 
-# Hopsworks Feature Store & Model Registry (Python 3.10 - 3.13 compatible)
+# Hopsworks Feature Store & Model Registry
 hopsworks==5.0.3
 
-# Deep Learning & LSTM Training
-tensorflow>=2.16.0
+# Deep Learning & LSTM Training (Compatible with Hopsworks & Python 3.12)
+tensorflow>=2.16.0,<=2.18.0
 keras>=3.0.0
 h5py>=3.11.0
+protobuf>=4.25.4,<5.0.0
 
 # Automated Test Suite
 pytest>=8.0.0
