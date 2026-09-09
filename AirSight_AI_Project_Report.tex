@@ -1,0 +1,330 @@
+\documentclass[12pt,a4paper]{article}
+
+% --- Font and Encoding ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx} % Times New Roman font for text and math
+
+% --- Page Geometry & Margins ---
+\usepackage[top=1in, bottom=1in, left=1in, right=1in]{geometry}
+\usepackage{setspace}
+\setstretch{1.15}
+
+% --- Visual & Typography Packages ---
+\usepackage{titlesec}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage[hidelinks]{hyperref}
+
+% Adjust headheight to eliminate header warnings
+\setlength{\headheight}{14.5pt}
+\addtolength{\topmargin}{-2.5pt}
+
+% --- Heading Sizes (14pt for Main Sections, 12pt for Subsections) ---
+\titleformat{\section}{\fontsize{14pt}{17pt}\selectfont\bfseries}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\fontsize{12pt}{15pt}\selectfont\bfseries}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\fontsize{12pt}{15pt}\selectfont\itshape}{\thesubsubsection}{0.6em}{}
+
+% --- Header and Footer ---
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small AirSight AI --- Project Report}
+\rhead{\small 10Pearls Internship (Cohort 9)}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\begin{document}
+
+% ============================================================
+% 1. TITLE PAGE
+% ============================================================
+\begin{titlepage}
+    \centering
+    \vspace*{1.5cm}
+    
+    {\fontsize{22pt}{26pt}\selectfont \textbf{AirSight AI}}\\[0.5cm]
+    {\fontsize{15pt}{18pt}\selectfont \textbf{Air Quality Index Prediction and Monitoring System}}\\[2.5cm]
+    
+    \textbf{\large Project Report}\\[0.5cm]
+    \large Submitted as part of the internship requirements\\[3cm]
+    
+    \begin{tabular}{ll}
+        \textbf{Student Name:} & Rida Eman \\
+        \textbf{Internship Program:} & 10Pearls Internship --- Cohort 9 \\
+        \textbf{Department:} & Data Science \\
+        \textbf{Project Name:} & AirSight AI \\
+        \textbf{Date:} & September 2026 \\
+    \end{tabular}
+    
+    \vfill
+    {\large \textbf{10Pearls Pakistan}}\\[0.2cm]
+    {\normalsize Data Science Department}
+    \vspace*{1cm}
+\end{titlepage}
+
+\newpage
+
+% ============================================================
+% 2. INTRODUCTION
+% ============================================================
+\section{Introduction}
+
+Air pollution is one of the most critical environmental and public health challenges in Pakistan. Major urban centers such as Lahore and Karachi regularly experience severe smog and high concentrations of toxic particulate matter. These conditions cause serious respiratory illnesses, decrease outdoor visibility, and affect daily life. 
+
+Traditional air monitoring systems only display historical or current air quality readings. However, citizens, schools, athletes, and city planners need to know what the air quality will be like in the upcoming hours to plan their activities safely.
+
+\textbf{AirSight AI} is an intelligent air-quality prediction and environmental monitoring platform that I developed during the 10Pearls Cohort 9 Data Science Internship. The system collects atmospheric and meteorological data, trains multiple machine learning models, and generates next-hour predictions as well as 24-hour, 48-hour, and 72-hour forecasts for five major Pakistani cities: Lahore, Karachi, Islamabad, Peshawar, and Quetta.
+
+The platform includes an interactive Streamlit web dashboard where users can view live Air Quality Index (AQI) values, explore geographic station maps, examine 72-hour forecast trends, understand which environmental features drive predictions using Explainable AI (SHAP), and receive practical recommendations on the safest times for outdoor activities.
+
+% ============================================================
+% 3. PROJECT OBJECTIVE
+% ============================================================
+\section{Project Objective}
+
+The main objectives of the AirSight AI project are:
+\begin{enumerate}
+    \item \textbf{Automated Data Collection:} Collect live and historical air pollution data (PM2.5, PM10, CO, NO2, O3, SO2, NH3, NO) and weather data (temperature, humidity, wind speed) from OpenWeather APIs.
+    \item \textbf{Data Preprocessing and Feature Engineering:} Clean raw sensor measurements, convert pollutant concentrations to continuous US EPA AQI values (0--500 scale), and generate time-series lag and rolling-mean features.
+    \item \textbf{Machine Learning Modeling:} Train, evaluate, and compare four machine learning algorithms (Random Forest, Ridge Regression, XGBoost, and Long Short-Term Memory networks) alongside an ensemble model.
+    \item \textbf{Multi-Step Recursive Forecasting:} Build a time-series forecasting engine that predicts AQI values up to 72 hours into the future without data leakage.
+    \item \textbf{Explainable AI (XAI):} Integrate SHAP (SHapley Additive exPlanations) so users can easily see how different weather and pollutant features influence predictions.
+    \item \textbf{Actionable Recommendations:} Create an ``Air Quality Windows'' engine to identify the best contiguous hours of the day for outdoor activities.
+    \item \textbf{Interactive Dashboard and MLOps:} Build an easy-to-use Streamlit web interface and automate scheduled pipelines using GitHub Actions and the Hopsworks feature store.
+\end{enumerate}
+
+% ============================================================
+% 4. UNDERSTANDING OF THE PROJECT
+% ============================================================
+\section{Understanding of the Project}
+
+The AirSight AI project follows a complete end-to-end data science lifecycle. The complete system workflow proceeds through six connected stages:
+
+\begin{center}
+\textbf{Data Collection} $\rightarrow$ \textbf{Data Processing} $\rightarrow$ \textbf{Feature Engineering} $\rightarrow$ \textbf{Model Training} $\rightarrow$ \textbf{Prediction \& Forecasting} $\rightarrow$ \textbf{Dashboard \& Alerts}
+\end{center}
+
+\subsection{Pipeline Stages}
+\begin{enumerate}
+    \item \textbf{Data Collection (\texttt{src/data\_pipeline/}):} Historical data (3,480 raw records) was collected and merged into \texttt{data/combined\_historical\_data.csv}. Live hourly snapshots are fetched from the OpenWeather API using \texttt{fetch\_data.py}.
+    \item \textbf{Feature Engineering (\texttt{src/feature\_engineering/features.py}):} Raw data is cleaned, converted to continuous EPA AQI, and transformed into 19 engineered features (including lag and rolling variables), producing \texttt{data/processed\_features.csv}.
+    \item \textbf{Model Training (\texttt{src/training/train\_model.py}):} Models are trained on historical data using chronological train/test splits. Trained model artifacts are serialized in the \texttt{models/} folder and synced to the Hopsworks model registry.
+    \item \textbf{Inference and Forecasting (\texttt{src/prediction/}):} \texttt{predict.py} generates next-hour predictions, while \texttt{forecast.py} generates 24-hour, 48-hour, and 72-hour recursive forecasts.
+    \item \textbf{Dashboard Visualization (\texttt{src/dashboard/}):} The Streamlit dashboard (\texttt{app.py}) presents interactive charts, maps, metrics, and SHAP feature attributions.
+    \item \textbf{Alerting System (\texttt{src/alerts/}):} \texttt{check\_alerts.py} checks if predictions exceed the ``Unhealthy'' threshold and sends email notifications via SMTP.
+\end{enumerate}
+
+% ============================================================
+% 5. DATA USED IN THE PROJECT
+% ============================================================
+\section{Data Used in the Project}
+
+\subsection{Monitored Cities}
+The project covers five major geographic stations across Pakistan:
+\begin{itemize}
+    \item \textbf{Lahore} ($31.5204^\circ\text{N}, 74.3587^\circ\text{E}$) --- Major industrial and agricultural plains.
+    \item \textbf{Karachi} ($24.8607^\circ\text{N}, 67.0011^\circ\text{E}$) --- Coastal metropolis and port city.
+    \item \textbf{Islamabad} ($33.6844^\circ\text{N}, 73.0479^\circ\text{E}$) --- Northern capital plateau.
+    \item \textbf{Peshawar} ($34.0151^\circ\text{N}, 71.5249^\circ\text{E}$) --- Northwestern valley.
+    \item \textbf{Quetta} ($30.1798^\circ\text{N}, 66.9750^\circ\text{E}$) --- High-altitude western mountain basin.
+\end{itemize}
+
+\subsection{Features and Variables}
+The dataset contains 19 features used as model inputs:
+\begin{itemize}
+    \item \textbf{Pollutants (8 variables):} $\text{PM}_{2.5}$, $\text{PM}_{10}$, $\text{CO}$, $\text{NO}_2$, $\text{O}_3$, $\text{SO}_2$, $\text{NH}_3$, and $\text{NO}$ (measured in $\mu\text{g/m}^3$).
+    \item \textbf{Meteorology (3 variables):} Temperature ($^\circ\text{C}$), Relative Humidity ($\%$) and Wind Speed ($\text{m/s}$).
+    \item \textbf{Time Features (4 variables):} Hour of day (0--23), Day of month (1--31), Month (1--12), and Day of week (0--6).
+    \item \textbf{Lag and Rolling Features (4 variables):} 1-hour lag ($\text{AQI}_{t-1}$), 2-hour lag ($\text{AQI}_{t-2}$), 1-hour rate of change ($\text{AQI}_{t-1} - \text{AQI}_{t-2}$), and 3-hour rolling mean.
+\end{itemize}
+
+\subsection{Target Variable and EPA AQI Formula}
+The target variable is \texttt{target\_aqi}, which represents the continuous AQI value for the next hour ($t+1$). The continuous AQI is calculated using the official US EPA piecewise linear formula based on $\text{PM}_{2.5}$ concentration ($C$):
+\begin{equation}
+\text{AQI} = \frac{I_{\text{high}} - I_{\text{low}}}{C_{\text{high}} - C_{\text{low}}} (C - C_{\text{low}}) + I_{\text{low}}
+\end{equation}
+where $C_{\text{low}}$ and $C_{\text{high}}$ are the concentration breakpoints, and $I_{\text{low}}$ and $I_{\text{high}}$ are the corresponding index breakpoints. The values are categorized into six standard EPA health categories: Good (0--50), Moderate (51--100), Unhealthy for Sensitive Groups (101--150), Unhealthy (151--200), Very Unhealthy (201--300), and Hazardous (301--500).
+
+% ============================================================
+% 6. MACHINE LEARNING MODELS
+% ============================================================
+\section{Machine Learning Models}
+
+To produce accurate and resilient predictions, AirSight AI uses four different machine learning models:
+
+\begin{enumerate}
+    \item \textbf{Random Forest Regressor (\texttt{aqi\_random\_forest.pkl}):} An ensemble of decision trees that handles non-linear relationships well. It also provides the basis for SHAP explainability.
+    \item \textbf{Ridge Regression (\texttt{aqi\_ridge.pkl}):} A regularized linear regression model with standard scaling to provide a fast and reliable baseline.
+    \item \textbf{XGBoost Regressor (\texttt{aqi\_xgboost.pkl}):} A gradient-boosted decision tree algorithm that sequentially corrects prediction errors. It achieved the highest individual accuracy in the project.
+    \item \textbf{LSTM Neural Network (\texttt{aqi\_lstm.keras}):} A deep learning Long Short-Term Memory recurrent neural network that processes 24-hour sequence windows to capture sequential time patterns.
+    \item \textbf{Ensemble Model:} Computes the average prediction across all active models, smoothing individual model errors and providing stable forecasts.
+\end{enumerate}
+
+\subsection{Model Performance Evaluation}
+Table~\ref{tab:model_metrics} presents the evaluation metrics recorded on test data in \texttt{models/model\_performance.json}.
+
+\begin{table}[htbp]
+\centering
+\caption{Model Performance Metrics on Test Set}
+\label{tab:model_metrics}
+\vspace{0.2cm}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{MAE} & \textbf{RMSE} & \textbf{$R^2$ Score} & \textbf{Validation RMSE} \\
+\midrule
+\textbf{XGBoost} & \textbf{2.34} & \textbf{6.90} & \textbf{0.9642} & \textbf{5.72} \\
+Random Forest & 2.57 & 7.09 & 0.9621 & 5.94 \\
+Ridge Regression & 3.40 & 8.56 & 0.9448 & 6.64 \\
+LSTM Network & 4.79 & 6.96 & 0.9646 & 8.21 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+% 7. AQI FORECASTING
+% ============================================================
+\section{AQI Forecasting}
+
+AirSight AI includes a custom multi-step recursive forecasting algorithm implemented in \texttt{src/prediction/forecast.py}.
+
+\subsection{Forecasting Mechanism}
+To predict AQI up to 72 hours ahead without target data leakage:
+\begin{enumerate}
+    \item At step $k=1$, the models use the latest observed features to predict $\widehat{\text{AQI}}_{t+1}$.
+    \item For steps $k=2, \dots, 72$, the predicted AQI value is recursively fed into the lag queue ($\text{lag}_1, \text{lag}_2$, rolling mean).
+    \item Future weather and pollutant values are dynamically fetched from the OpenWeather 5-day forecast API. If the API is unavailable, a diurnal sinusoidal model calculates realistic day and night variations.
+\end{enumerate}
+
+\subsection{Air Quality Windows Engine}
+Implemented in \texttt{src/recommendation/air\_quality\_windows.py}, this feature translates raw numbers into practical daily advice. It scores potential outdoor time blocks (0--100) for activities such as Walking, Running, Cycling, or Outdoor Work. It identifies and displays the ``Best Outdoor Window'' (e.g., 06:00 AM -- 09:00 AM) with its expected average AQI and suitability classification.
+
+% ============================================================
+% 8. DASHBOARD
+% ============================================================
+\section{Dashboard}
+
+The user interface is built in Streamlit (\texttt{src/dashboard/app.py}) and structured into six clear views:
+\begin{enumerate}
+    \item \textbf{Home / Overview (\texttt{overview.py}):} Displays the hero current AQI card, next-hour outlook, five key metric cards (AQI, PM2.5, PM10, Temperature, Humidity), historical trend charts, and an interactive geographic map.
+    \item \textbf{Geographic Map (\texttt{map\_view.py}):} An interactive station map built with modern Plotly MapLibre (\texttt{px.scatter\_map}) and OpenStreetMap tiles.
+    \item \textbf{City Details (\texttt{city\_intelligence.py}):} Detailed pollutant breakdowns and environmental relationships for each city.
+    \item \textbf{Forecast (\texttt{forecasting.py}):} 72-hour forecast line charts, multi-model comparison, and the Air Quality Windows recommendation card.
+    \item \textbf{AI Performance \& XAI (\texttt{model\_intelligence.py}):} Evaluation metrics table, model architecture notes, and on-demand SHAP feature attribution tables.
+    \item \textbf{Alerts (\texttt{alerts.py}):} Live alert status, customizable notification thresholds, and SMTP email delivery configuration.
+    \item \textbf{Settings (\texttt{settings.py}):} User settings saved locally to \texttt{data/app\_settings.json}.
+\end{enumerate}
+
+% ============================================================
+% 9. MLOps and Automation
+% ============================================================
+\section{MLOps and Automation}
+
+AirSight AI uses automated background pipelines with GitHub Actions and Hopsworks:
+
+\begin{itemize}
+    \item \textbf{Hourly Feature Pipeline (\texttt{.github/workflows/feature\_pipeline.yml}):} Runs every hour to fetch live data with \texttt{fetch\_data.py}, engineer features with \texttt{features.py}, check email alerts with \texttt{check\_alerts.py}, and sync data to the Hopsworks feature store.
+    \item \textbf{Daily Training Pipeline (\texttt{.github/workflows/training\_pipeline.yml}):} Runs daily at midnight to retrain models and update model artifacts.
+    \item \textbf{Dependency Separation:} To keep the Streamlit dashboard lightweight and fast, runtime dependencies (\texttt{requirements.txt}) are separated from MLOps training dependencies (\texttt{requirements-mlops.txt}).
+\end{itemize}
+
+% ============================================================
+% 10. PROBLEMS FACED DURING DEVELOPMENT
+% ============================================================
+\section{Problems Faced During Development}
+
+During the development of AirSight AI, I encountered several real-world technical problems and resolved them as follows:
+
+\subsection{Problem 1: Missing Root Module in GitHub Actions}
+\begin{itemize}
+    \item \textbf{Problem:} The automated feature pipeline in GitHub Actions failed with \texttt{ModuleNotFoundError: No module named 'src'}.
+    \item \textbf{Why it happened:} When GitHub Actions ran \texttt{python src/feature\_engineering/features.py}, Python set the working directory to the subfolder rather than the project root.
+    \item \textbf{How I handled it:} I added dynamic root path resolution using \texttt{pathlib.Path} to \texttt{sys.path} in \texttt{features.py} and added \texttt{env: PYTHONPATH: .} in the GitHub Actions workflow file.
+\end{itemize}
+
+\subsection{Problem 2: Deprecated Plotly Mapbox API Crash}
+\begin{itemize}
+    \item \textbf{Problem:} The dashboard crashed on startup with an \texttt{AttributeError} inside \texttt{map\_view.py} at \texttt{px.scatter\_mapbox}.
+    \item \textbf{Why it happened:} Recent Plotly releases (v6.0+) removed the legacy \texttt{scatter\_mapbox} methods in favor of the MapLibre engine.
+    \item \textbf{How I handled it:} I migrated \texttt{map\_view.py} to modern \texttt{px.scatter\_map} with \texttt{map\_style="open-street-map"}, eliminating Mapbox token requirements and adding fallback handling.
+\end{itemize}
+
+\subsection{Problem 3: Hopsworks and Deep Learning Installation Failures on Streamlit Cloud}
+\begin{itemize}
+    \item \textbf{Problem:} Streamlit Community Cloud deployment failed while attempting to build \texttt{h5py} from source and resolving \texttt{hopsworks==5.0.6}.
+    \item \textbf{Why it happened:} \texttt{h5py} required C compilation with system libraries (\texttt{pkg-config}, \texttt{libhdf5-dev}) not present in the cloud container, while Hopsworks brought heavy dependencies not needed by the dashboard runtime.
+    \item \textbf{How I handled it:} I decoupled the requirements into \texttt{requirements.txt} (inference only) and \texttt{requirements-mlops.txt} (training only), and wrapped Hopsworks and TensorFlow imports in safe \texttt{try/except} fallback blocks.
+\end{itemize}
+
+\subsection{Problem 4: Preventing Data Leakage in 72-Hour Forecasting}
+\begin{itemize}
+    \item \textbf{Problem:} Forecasting future hours required lag features that did not exist yet for future timestamps.
+    \item \textbf{Why it happened:} In time-series forecasting, using future actual values causes target leakage.
+    \item \textbf{How I handled it:} I built an autoregressive feedback loop where each hour's predicted AQI is appended to a state buffer to dynamically generate lags for subsequent forecast steps.
+\end{itemize}
+
+\subsection{Problem 5: Preventing Duplicate Alert Emails}
+\begin{itemize}
+    \item \textbf{Problem:} The hourly alerting daemon repeatedly sent duplicate emails every hour while the AQI remained in the ``Unhealthy'' range.
+    \item \textbf{Why it happened:} The pipeline had no memory of previous alert states between hourly runs.
+    \item \textbf{How I handled it:} I created a persistent state tracking file (\texttt{data/alert\_state.json}) with file locking to ensure emails are only sent on initial state transitions.
+\end{itemize}
+
+% ============================================================
+% 11. DEPLOYMENT CHALLENGES
+% ============================================================
+\section{Deployment Challenges}
+
+Deploying a multi-model machine learning application to Streamlit Community Cloud presented specific deployment constraints:
+
+\begin{enumerate}
+    \item \textbf{Monolithic Dependency Bloat:} The initial repository used a full local environment freeze containing Jupyter, debugging tools, and build packages (160+ dependencies). This caused dependency resolution conflicts and slow build times.
+    \item \textbf{Binary Wheel Compatibility:} Cloud Linux containers require pre-compiled \texttt{manylinux} wheels. By removing strict version pins and training-only packages from \texttt{requirements.txt}, container build time dropped from over 10 minutes to under 25 seconds.
+    \item \textbf{Cross-Platform File Paths:} Local Windows paths (e.g., backslashes \texttt{\textbackslash}) caused path resolution errors in Linux containers. All file paths were refactored to use \texttt{pathlib.Path} anchored to the project root.
+\end{enumerate}
+
+% ============================================================
+% 12. TESTING AND VALIDATION
+% ============================================================
+\section{Testing and Validation}
+
+AirSight AI includes an automated test suite located in the \texttt{tests/} directory. Testing was executed using \texttt{pytest}:
+
+\begin{itemize}
+    \item \textbf{\texttt{test\_air\_quality\_windows.py}:} Validates suitability score calculations (0--100), activity profile penalties, and candidate time window ranking (7 tests).
+    \item \textbf{\texttt{test\_alerts.py}:} Verifies threshold categorization, email formatting, and duplicate alert suppression via state locking (6 tests).
+    \item \textbf{\texttt{test\_feature\_view.py}:} Tests feature column schemas, chronological ordering, and train/test split discipline (4 tests).
+    \item \textbf{\texttt{test\_local\_forecast.py}:} Verifies local model loading latency, 72-hour recursive forecast shape, missing file exceptions, and lazy SHAP calculations (6 tests).
+    \item \textbf{\texttt{test\_lstm.py}:} Validates 24-step sequence generation, absence of future leakage in sequences, and scaling isolation (7 tests).
+\end{itemize}
+
+\textbf{Test Execution Result:} \textbf{30 passed} out of 30 tests in 29.57 seconds (100\% pass rate).
+
+% ============================================================
+% 13. WHAT I LEARNED
+% ============================================================
+\section{What I Learned}
+
+Working on AirSight AI during the 10Pearls internship was a comprehensive learning experience that bridged academic data science concepts with production engineering:
+
+\begin{itemize}
+    \item \textbf{End-to-End Machine Learning:} I learned how to move from raw, noisy API data to cleaned features, model training, evaluation, and serialized deployment.
+    \item \textbf{Time-Series Forecasting:} I gained a deep understanding of autoregressive lagging, rolling window statistics, and how to prevent future target leakage.
+    \item \textbf{Production MLOps:} I learned how to use GitHub Actions for scheduled workflows and how to manage feature stores with Hopsworks.
+    \item \textbf{Software Engineering Discipline:} I learned the importance of automated unit testing, defensive exception handling, path portability, and separating production runtime requirements from development dependencies.
+    \item \textbf{User Interface Design:} Building the dashboard in Streamlit taught me how to present complex predictions and SHAP explainability in a clear, user-friendly manner.
+\end{itemize}
+
+% ============================================================
+% 14. CONCLUSION
+% ============================================================
+\section{Conclusion}
+
+AirSight AI successfully demonstrates an end-to-end air quality prediction and environmental intelligence system tailored for major Pakistani cities. By combining tabular gradient boosting (XGBoost, Random Forest), linear modeling (Ridge), deep learning (LSTM), and an ensemble approach, the system achieves strong predictive accuracy ($R^2 > 0.96$). 
+
+The project delivers practical value through its 72-hour forecasting engine, smart Air Quality Windows recommendations, on-demand Explainable AI, and automated MLOps pipelines. Developing this project provided valuable hands-on experience in machine learning, system architecture, debugging, and production deployment.
+
+\end{document}
