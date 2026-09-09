@@ -6,8 +6,9 @@
 # Inherit dashboard runtime requirements
 -r requirements.txt
 
-# Hopsworks Feature Store & Model Registry
-hopsworks==5.0.3
+# Hopsworks Feature Store & Model Registry (with Kafka streaming support)
+hopsworks[python]==5.0.3
+confluent-kafka>=2.0.0
 
 # Deep Learning & LSTM Training (Compatible with Hopsworks & Python 3.12)
 tensorflow>=2.16.0,<=2.18.0
